@@ -41,10 +41,9 @@ func main() {
 	// Create schema
 	classObj := &models.Class{
 		Class:      "Question",
-		Vectorizer: "text2vec-openai", // If "none" you must always provide vectors yourself. Could be any other "text2vec-*" also.
+		Vectorizer: "text2vec-contextionary", // "none", "text2vec-contextionary", "text2vec-openai"
 		ModuleConfig: map[string]interface{}{
-			"text2vec-openai":   map[string]interface{}{},
-			"generative-openai": map[string]interface{}{},
+			"text2vec-contextionary": map[string]interface{}{},
 		},
 	}
 	err = client.Schema().ClassCreator().WithClass(classObj).Do(context.Background())
