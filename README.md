@@ -25,8 +25,13 @@ REFERENCES:
 
 <!-- 
 TODO:
-- Deploy with Contextionary? Deploy with OpenAI (docker-compose.openai.yml)? Deploy standalone?
 - Write a basic VectorDB. Insert embedding. Search for embedding.
 - https://cybernetist.com/2024/01/07/fun-with-embeddings/
 - https://github.com/ynqa/wego
+-->
+
+<!--
+DONE (new to old):
+- Insert & search for embedding using Weaviate Contextionary vectorizer.
+- Deploy with Contextionary, OpenAI, standalone
 -->
