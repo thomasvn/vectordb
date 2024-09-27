@@ -11,6 +11,10 @@ docker run -p 8080:8080 -p 50051:50051 cr.weaviate.io/semitechnologies/weaviate:
 # Option2: Locally run VectorDB with text2vec-contextionary vectorizer
 docker compose -f docker-compose.contextionary.yml up -d
 docker compose -f docker-compose.contextionary.yml down
+
+# Option3: Locally run VectorDB with text2vec-openai vectorizer
+docker compose -f docker-compose.openai.yml up -d
+docker compose -f docker-compose.openai.yml down
 ```
 
 <!-- 
