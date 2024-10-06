@@ -17,17 +17,42 @@ docker compose -f docker-compose.openai.yml up -d
 docker compose -f docker-compose.openai.yml down
 ```
 
-<!-- 
+```sh
+source .env
+go run cmd/main/main.go
+```
+
+<!--
 REFERENCES:
 - https://weaviate.io/developers/weaviate/installation/docker-compose
 - https://weaviate.io/developers/weaviate/quickstart
+- https://platform.openai.com/docs/guides/embeddings
+-->
+
+<!--
+RSS Feeds I follow:
+- https://thomasvn.dev/feed/
+- https://jvns.ca/atom.xml
+- https://golangweekly.com/rss/
+- https://blog.pragmaticengineer.com/feed/
+- https://rss.beehiiv.com/feeds/gQxaV1KHkQ.xml
+- https://world.hey.com/dhh/feed.atom
+- https://blog.kubecost.com/feed.xml
+- https://kubernetes.io/feed.xml
+
+- Pocket Exports https://getpocket.com/export/
 -->
 
 <!-- 
 TODO:
+- Using a VectorDB?
+  - What can I turn to embeddings for storage and search?
+    - All the RSS feeds I follow.
+    - Open source codebases.
 - Write a basic VectorDB. Insert embedding. Search for embedding.
-- https://cybernetist.com/2024/01/07/fun-with-embeddings/
-- https://github.com/ynqa/wego
+- Creating your own Embeddings.
+  - https://github.com/ynqa/wego
+  - https://cybernetist.com/2024/01/07/fun-with-embeddings/
 -->
 
 <!--

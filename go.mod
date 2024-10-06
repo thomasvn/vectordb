@@ -2,11 +2,18 @@ module main
 
 go 1.23.1
 
-require github.com/weaviate/weaviate-go-client/v4 v4.15.1
+require (
+	github.com/JohannesKaufmann/html-to-markdown v1.6.0
+	github.com/mmcdole/gofeed v1.3.0
+	github.com/weaviate/weaviate v1.26.0-rc.1
+	github.com/weaviate/weaviate-go-client/v4 v4.15.1
+)
 
 require (
+	github.com/PuerkitoBio/goquery v1.9.2 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
+	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/go-openapi/analysis v0.21.2 // indirect
 	github.com/go-openapi/errors v0.22.0 // indirect
@@ -19,11 +26,14 @@ require (
 	github.com/go-openapi/validate v0.21.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
+	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/mmcdole/goxpp v1.1.1-0.20240225020742-a0c311522b23 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/weaviate/weaviate v1.26.0-rc.1 // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/oauth2 v0.21.0 // indirect
