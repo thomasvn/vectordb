@@ -31,24 +31,26 @@ REFERENCES:
 
 <!--
 RSS Feeds I follow:
-- https://thomasvn.dev/feed/
-- https://jvns.ca/atom.xml
-- https://golangweekly.com/rss/
-- https://blog.pragmaticengineer.com/feed/
-- https://rss.beehiiv.com/feeds/gQxaV1KHkQ.xml
-- https://world.hey.com/dhh/feed.atom
-- https://blog.kubecost.com/feed.xml
-- https://kubernetes.io/feed.xml
+https://thomasvn.dev/feed/
+https://jvns.ca/atom.xml
+https://golangweekly.com/rss/
+https://blog.pragmaticengineer.com/feed/
+https://rss.beehiiv.com/feeds/gQxaV1KHkQ.xml
+https://world.hey.com/dhh/feed.atom
+https://blog.kubecost.com/feed.xml
+https://kubernetes.io/feed.xml
 
 - Pocket Exports https://getpocket.com/export/
 -->
 
 <!-- 
 TODO:
-- Using a VectorDB?
-  - What can I turn to embeddings for storage and search?
-    - All the RSS feeds I follow.
-    - Open source codebases.
+- RSS Search
+  - Parameterize the RSS feeds.
+  - Ensure we are not doing unnecessary duplicate inserts.
+  - Generate a UUID for each RSS feed item? https://weaviate.io/developers/weaviate/manage-data/import#specify-an-id-value
+- Ideas for using a VectorDB?
+    - Storage & search. Open source codebases.
 - Write a basic VectorDB. Insert embedding. Search for embedding.
 - Creating your own Embeddings.
   - https://github.com/ynqa/wego

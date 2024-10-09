@@ -23,13 +23,6 @@ var (
 
 var rssFeeds = []string{
 	"https://thomasvn.dev/feed/",
-	"https://jvns.ca/atom.xml",
-	"https://golangweekly.com/rss/",
-	"https://blog.pragmaticengineer.com/feed/",
-	"https://rss.beehiiv.com/feeds/gQxaV1KHkQ.xml",
-	"https://world.hey.com/dhh/feed.atom",
-	"https://blog.kubecost.com/feed.xml",
-	"https://kubernetes.io/feed.xml",
 }
 
 type RSSFeedProperties struct {
@@ -50,6 +43,15 @@ func main() {
 		log.Fatal("WEAVIATE_URL and OPENAI_APIKEY environment variables must be set")
 	}
 
+	client := instantiateWeaviate()
+
+	feeds := []RSSFeedProperties{}
+	for _, url := range rssFeeds {
+		feed := parseFeed(url)
+		feeds = append(feeds, feed...)
+	}
+
+	insertRSSFeeds(client, feeds)
 }
 
 func parseFeed(url string) []RSSFeedProperties {
@@ -103,6 +105,30 @@ func instantiateWeaviate() *weaviate.Client {
 	return client
 }
 
-// Function to insert RSS feeds
+func insertRSSFeeds(client *weaviate.Client, rssFeeds []RSSFeedProperties) {
+	objects := make([]*models.Object, len(rssFeeds))
+	for i := range rssFeeds {
+		objects[i] = &models.Object{
+			Class: TABLE_NAME,
+			Properties: map[string]any{
+				"title":     rssFeeds[i].Title,
+				"link":      rssFeeds[i].Link,
+				"updated":   rssFeeds[i].Updated,
+				"published": rssFeeds[i].Published,
+				"content":   rssFeeds[i].Content,
+			},
+		}
+	}
+
+	batchRes, err := client.Batch().ObjectsBatcher().WithObjects(objects...).Do(context.Background())
+	if err != nil {
+		log.Fatalf("failed to batch write objects: %v", err)
+	}
+	for _, res := range batchRes {
+		if res.Result.Errors != nil {
+			log.Fatalf("failed to batch write objects: %v", res.Result.Errors.Error)
+		}
+	}
+}
 
 // Function to search RSS feeds
