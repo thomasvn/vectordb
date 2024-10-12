@@ -46,9 +46,7 @@ https://kubernetes.io/feed.xml
 <!-- 
 TODO:
 - RSS Search
-  - Ensure we are not doing unnecessary duplicate inserts.
-  - Parameterize the RSS feeds.
-  - Generate a UUID for each RSS feed item? https://weaviate.io/developers/weaviate/manage-data/import#specify-an-id-value
+  - Parsing of feed dates
   - grpc instead of http
   - only return responses if they meet a certain similarity score?
 - Ideas for using a VectorDB?
@@ -62,6 +60,8 @@ TODO:
 <!--
 DONE (new to old):
 - RSS Search
+  - Parameterize the RSS feeds
+  - Generate a UUID for each RSS feed item?
   - Ensure batch import does not perform duplicate inserts.
 - Insert & search for embedding using Weaviate Contextionary vectorizer.
 - Deploy with Contextionary, OpenAI, standalone

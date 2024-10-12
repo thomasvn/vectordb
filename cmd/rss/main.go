@@ -24,11 +24,8 @@ const (
 var (
 	weaviateURL  = os.Getenv("WEAVIATE_URL")  // "localhost:8080"
 	openaiApiKey = os.Getenv("OPENAI_APIKEY") // ""
+	rssFeeds     = os.Getenv("RSS_FEEDS")     // Comma-separated list of links "https://thomasvn.dev/feed/,https://golangweekly.com/rss/,https://kubernetes.io/feed.xml"
 )
-
-var rssFeeds = []string{
-	"https://thomasvn.dev/feed/",
-}
 
 type RSSFeedProperties struct {
 	Title     string
@@ -44,8 +41,8 @@ var schema = models.Object{
 }
 
 func main() {
-	if weaviateURL == "" || openaiApiKey == "" {
-		log.Fatal("WEAVIATE_URL and OPENAI_APIKEY environment variables must be set")
+	if weaviateURL == "" || openaiApiKey == "" || rssFeeds == "" {
+		log.Fatal("WEAVIATE_URL, OPENAI_APIKEY, and RSS_FEEDS environment variables must be set")
 	}
 
 	if len(os.Args) < 2 {
@@ -56,7 +53,7 @@ func main() {
 	client := instantiateWeaviate()
 
 	feeds := []RSSFeedProperties{}
-	for _, url := range rssFeeds {
+	for _, url := range strings.Split(rssFeeds, ",") {
 		feed := parseFeed(url)
 		feeds = append(feeds, feed...)
 	}
@@ -123,16 +120,22 @@ func instantiateWeaviate() *weaviate.Client {
 func insertRSSFeeds(client *weaviate.Client, rssFeeds []RSSFeedProperties) {
 	objects := make([]*models.Object, len(rssFeeds))
 	for i := range rssFeeds {
+		properties := map[string]any{
+			"title":   rssFeeds[i].Title,
+			"link":    rssFeeds[i].Link,
+			"content": rssFeeds[i].Content,
+		}
+		if rssFeeds[i].Updated != "" {
+			properties["updated"] = rssFeeds[i].Updated
+		}
+		if rssFeeds[i].Published != "" {
+			properties["published"] = rssFeeds[i].Published
+		}
+
 		objects[i] = &models.Object{
-			Class: TABLE_NAME,
-			Properties: map[string]any{
-				"title":     rssFeeds[i].Title,
-				"link":      rssFeeds[i].Link,
-				"updated":   rssFeeds[i].Updated,
-				"published": rssFeeds[i].Published,
-				"content":   rssFeeds[i].Content,
-			},
-			ID: generateUUID(rssFeeds[i].Link),
+			Class:      TABLE_NAME,
+			Properties: properties,
+			ID:         generateUUID(rssFeeds[i].Link),
 		}
 	}
 
@@ -143,7 +146,8 @@ func insertRSSFeeds(client *weaviate.Client, rssFeeds []RSSFeedProperties) {
 	}
 	for _, res := range batchRes {
 		if res.Result.Errors != nil {
-			log.Fatalf("failed to batch write objects: %v", res.Result.Errors.Error)
+			errorsJSON, _ := json.MarshalIndent(res.Result.Errors, "", "  ")
+			log.Fatalf("failed to batch write objects: %s\n", string(errorsJSON))
 		}
 	}
 }
@@ -177,11 +181,9 @@ func searchRSSFeeds(client *weaviate.Client, query string) map[string]models.JSO
 	if err != nil {
 		log.Fatalf("failed to perform semantic search: %v", err)
 	}
-	if result.Errors != nil && len(result.Errors) > 0 {
-		for i, err := range result.Errors {
-			fmt.Printf("Error %d: %+v\n", i+1, err.Message)
-		}
-		log.Fatalf("failed to perform semantic search")
+	if result.Errors != nil {
+		errorsJSON, _ := json.MarshalIndent(result.Errors, "", "  ")
+		log.Fatalf("failed to perform semantic search: %s\n", string(errorsJSON))
 	}
 
 	return result.Data
