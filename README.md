@@ -44,11 +44,25 @@ https://kubernetes.io/feed.xml
 -->
 
 <!-- 
+2024/10/13 19:13:15 Configuring Weaviate connection ...
+2024/10/13 19:13:15 Class RssFeeds already exists, skipping schema creation ...
+2024/10/13 19:13:18 Batch inserting 159 objects ...
+2024/10/13 19:13:38 failed to batch write objects: {
+  "error": [
+    {
+      "message": "connection to: OpenAI API failed with status: 400 error: This model's maximum context length is 8192 tokens, however you requested 10905 tokens (10905 in your prompt; 0 for the completion). Please reduce your prompt; or completion length."
+    }
+  ]
+}
+exit status 1
+-->
+
+<!-- 
 TODO:
 - RSS Search
-  - Parsing of feed dates
-  - grpc instead of http
+  - Embedding maxinput=8191 https://platform.openai.com/docs/guides/embeddings/embedding-models
   - only return responses if they meet a certain similarity score?
+  - grpc instead of http
 - Ideas for using a VectorDB?
     - Storage & search. Open source codebases.
 - Write a basic VectorDB. Insert embedding. Search for embedding.
@@ -60,6 +74,7 @@ TODO:
 <!--
 DONE (new to old):
 - RSS Search
+  - Parsing RSS feed timestamps into RFC3339 format
   - Parameterize the RSS feeds
   - Generate a UUID for each RSS feed item?
   - Ensure batch import does not perform duplicate inserts.

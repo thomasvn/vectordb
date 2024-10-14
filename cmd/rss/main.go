@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/go-openapi/strfmt"
@@ -62,8 +63,8 @@ func main() {
 	result := searchRSSFeeds(client, query)
 
 	jsonData, _ := json.MarshalIndent(result, "", "  ")
-	fmt.Printf("Query: %s\n", query)
-	fmt.Printf("Results: %s\n", string(jsonData))
+	log.Printf("Query: %s\n", query)
+	log.Printf("Results: %s\n", string(jsonData))
 }
 
 func parseFeed(url string) []RSSFeedProperties {
@@ -96,11 +97,11 @@ func instantiateWeaviate() *weaviate.Client {
 	}
 
 	client, _ := weaviate.NewClient(cfg)
-	fmt.Println("Configuring Weaviate connection ...")
+	log.Println("Configuring Weaviate connection ...")
 
 	exists, _ := client.Schema().ClassExistenceChecker().WithClassName(TABLE_NAME).Do(context.Background())
 	if exists {
-		fmt.Printf("Class %s already exists, skipping schema creation ...\n", TABLE_NAME)
+		log.Printf("Class %s already exists, skipping schema creation ...\n", TABLE_NAME)
 		return client
 	}
 
@@ -112,7 +113,7 @@ func instantiateWeaviate() *weaviate.Client {
 		},
 	}
 	_ = client.Schema().ClassCreator().WithClass(classObj).Do(context.Background())
-	fmt.Printf("Class %s created ...\n", TABLE_NAME)
+	log.Printf("Class %s created ...\n", TABLE_NAME)
 
 	return client
 }
@@ -126,10 +127,18 @@ func insertRSSFeeds(client *weaviate.Client, rssFeeds []RSSFeedProperties) {
 			"content": rssFeeds[i].Content,
 		}
 		if rssFeeds[i].Updated != "" {
-			properties["updated"] = rssFeeds[i].Updated
+			if t, err := parseAndFormatDate(rssFeeds[i].Updated); err == nil {
+				properties["updated"] = t
+			} else {
+				log.Printf("Warning: Unable to parse Updated date for %s: %v", rssFeeds[i].Link, err)
+			}
 		}
 		if rssFeeds[i].Published != "" {
-			properties["published"] = rssFeeds[i].Published
+			if t, err := parseAndFormatDate(rssFeeds[i].Published); err == nil {
+				properties["published"] = t
+			} else {
+				log.Printf("Warning: Unable to parse Published date for %s: %v", rssFeeds[i].Link, err)
+			}
 		}
 
 		objects[i] = &models.Object{
@@ -139,7 +148,7 @@ func insertRSSFeeds(client *weaviate.Client, rssFeeds []RSSFeedProperties) {
 		}
 	}
 
-	fmt.Printf("Batch inserting %d objects ...\n", len(objects))
+	log.Printf("Batch inserting %d objects ...\n", len(objects))
 	batchRes, err := client.Batch().ObjectsBatcher().WithObjects(objects...).Do(context.Background())
 	if err != nil {
 		log.Fatalf("failed to batch write objects: %v", err)
@@ -157,6 +166,29 @@ func generateUUID(input string) strfmt.UUID {
 	hash := md5.Sum([]byte(input))
 	uuid := fmt.Sprintf("%x-%x-%x-%x-%x", hash[0:4], hash[4:6], hash[6:8], hash[8:10], hash[10:])
 	return strfmt.UUID(uuid)
+}
+
+func parseAndFormatDate(dateStr string) (string, error) {
+	formats := []string{
+		time.RFC3339,
+		time.RFC1123,
+		time.RFC1123Z,
+		"Mon, 02 Jan 2006 15:04:05 MST",
+		"Mon, 2 Jan 2006 15:04:05 -0700",
+		"Mon, 2 Jan 2006 15:04:05 +0000",
+		"2006-01-02T15:04:05Z",
+	}
+
+	var t time.Time
+	var err error
+	for _, format := range formats {
+		t, err = time.Parse(format, dateStr)
+		if err == nil {
+			return t.Format(time.RFC3339), nil
+		}
+	}
+
+	return "", fmt.Errorf("unable to parse date: %s", dateStr)
 }
 
 func searchRSSFeeds(client *weaviate.Client, query string) map[string]models.JSONObject {
