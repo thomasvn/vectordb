@@ -60,7 +60,7 @@ exit status 1
 <!-- 
 TODO:
 - RSS Search
-  - Embedding maxinput=8191 https://platform.openai.com/docs/guides/embeddings/embedding-models
+  - MAX_CONTENT_LENGTH should be defined in tokens not chars. Create multiple chunks for this blog post. https://github.com/openai/tiktoken
   - only return responses if they meet a certain similarity score?
   - grpc instead of http
 - Ideas for using a VectorDB?
@@ -74,6 +74,7 @@ TODO:
 <!--
 DONE (new to old):
 - RSS Search
+  - Embedding maxinput=8191 https://platform.openai.com/docs/guides/embeddings/embedding-models
   - Parsing RSS feed timestamps into RFC3339 format
   - Parameterize the RSS feeds
   - Generate a UUID for each RSS feed item?
