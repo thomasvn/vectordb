@@ -46,6 +46,11 @@ func NewWeaviateClient(cfg weaviate.Config, tableName string) *WeaviateClient {
 func (w *WeaviateClient) InsertRSSFeeds(rssFeeds []RSSFeedProperties) {
 	objects := make([]*models.Object, len(rssFeeds))
 	for i := range rssFeeds {
+		if w.checkRSSFeedExists(rssFeeds[i].Link) {
+			log.Printf("RSS feed %s already exists, skipping insertion ...\n", rssFeeds[i].Link)
+			continue
+		}
+
 		properties := map[string]any{
 			"title":   rssFeeds[i].Title,
 			"link":    rssFeeds[i].Link,
@@ -114,6 +119,12 @@ func (w *WeaviateClient) SearchRSSFeeds(query string) map[string]models.JSONObje
 	}
 
 	return result.Data
+}
+
+func (w *WeaviateClient) checkRSSFeedExists(link string) bool {
+	uuid := generateUUID(link)
+	exists, _ := w.client.Data().Checker().WithClassName(w.tableName).WithID(uuid.String()).Do(context.Background())
+	return exists
 }
 
 func generateUUID(input string) strfmt.UUID {

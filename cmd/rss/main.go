@@ -6,8 +6,6 @@ import (
 	"os"
 	"strings"
 
-	md "github.com/JohannesKaufmann/html-to-markdown"
-	"github.com/mmcdole/gofeed"
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 )
 
@@ -22,19 +20,10 @@ var (
 	rssFeeds     = os.Getenv("RSS_FEEDS")     // Comma-separated list of links "https://thomasvn.dev/feed/,https://golangweekly.com/rss/,https://kubernetes.io/feed.xml"
 )
 
-type RSSFeedProperties struct {
-	Title     string
-	Link      string
-	Updated   string
-	Published string
-	Content   string
-}
-
 func main() {
 	if weaviateURL == "" || openaiApiKey == "" || rssFeeds == "" {
 		log.Fatal("WEAVIATE_URL, OPENAI_APIKEY, and RSS_FEEDS environment variables must be set")
 	}
-
 	if len(os.Args) < 2 {
 		log.Fatal("Please provide a search query as a command line argument")
 	}
@@ -51,38 +40,14 @@ func main() {
 
 	feeds := []RSSFeedProperties{}
 	for _, url := range strings.Split(rssFeeds, ",") {
-		feed := parseFeed(url)
+		feed := parseFeed(url, MAX_CONTENT_LENGTH)
 		feeds = append(feeds, feed...)
 	}
 
 	client.InsertRSSFeeds(feeds)
+
 	result := client.SearchRSSFeeds(query)
 
 	jsonData, _ := json.MarshalIndent(result, "", "  ")
-	log.Printf("Query: %s\n", query)
-	log.Printf("Results: %s\n", string(jsonData))
-}
-
-func parseFeed(url string) []RSSFeedProperties {
-	fp := gofeed.NewParser()
-	feed, _ := fp.ParseURL(url)
-
-	results := []RSSFeedProperties{}
-	for _, item := range feed.Items {
-		converter := md.NewConverter("", true, nil)
-		contentMd, _ := converter.ConvertString(item.Content)
-		if len(contentMd) > MAX_CONTENT_LENGTH {
-			contentMd = contentMd[:MAX_CONTENT_LENGTH] + "..."
-		}
-
-		d := RSSFeedProperties{
-			Title:     item.Title,
-			Link:      item.Link,
-			Updated:   item.Updated,
-			Published: item.Published,
-			Content:   contentMd,
-		}
-		results = append(results, d)
-	}
-	return results
+	log.Printf("Query: %s\nResults: %s\n", query, string(jsonData))
 }

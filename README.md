@@ -60,6 +60,7 @@ exit status 1
 <!-- 
 TODO:
 - RSS Search
+  - Only insert RSS feeds if it is not already in the DB. And if it has not been updated recently.
   - MAX_CONTENT_LENGTH should be defined in tokens not chars. Create multiple chunks for this blog post. https://github.com/openai/tiktoken
   - only return responses if they meet a certain similarity score?
   - grpc instead of http
@@ -74,6 +75,7 @@ TODO:
 <!--
 DONE (new to old):
 - RSS Search
+  - Add both "Item.Description" and "Item.Content" into the embedding
   - Embedding maxinput=8191 https://platform.openai.com/docs/guides/embeddings/embedding-models
   - Parsing RSS feed timestamps into RFC3339 format
   - Parameterize the RSS feeds
