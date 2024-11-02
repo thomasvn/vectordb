@@ -22,6 +22,17 @@ source .env
 go run cmd/main/main.go
 ```
 
+## Chromem-go
+
+https://pkg.go.dev/github.com/philippgille/chromem-go
+
+An embedded vector database
+
+```sh
+source .env
+go run cmd/chromem-go/main.go "topics on kubernetes security
+```
+
 <!--
 REFERENCES:
 - https://weaviate.io/developers/weaviate/installation/docker-compose
@@ -43,20 +54,6 @@ https://kubernetes.io/feed.xml
 - Pocket Exports https://getpocket.com/export/
 -->
 
-<!-- 
-2024/10/13 19:13:15 Configuring Weaviate connection ...
-2024/10/13 19:13:15 Class RssFeeds already exists, skipping schema creation ...
-2024/10/13 19:13:18 Batch inserting 159 objects ...
-2024/10/13 19:13:38 failed to batch write objects: {
-  "error": [
-    {
-      "message": "connection to: OpenAI API failed with status: 400 error: This model's maximum context length is 8192 tokens, however you requested 10905 tokens (10905 in your prompt; 0 for the completion). Please reduce your prompt; or completion length."
-    }
-  ]
-}
-exit status 1
--->
-
 <!--
 TODO:
 - RSS Search
@@ -70,6 +67,11 @@ TODO:
   - grpc instead of http
   - Two APIs. One for updating the RSS feeds. One for searching the RSS feeds.
   - https://weaviate.io/developers/weaviate/configuration/backups
+- Chromem-go
+  - Persist the DB to disk. Load to disk.
+  - Persist the DB to cloud storage. Load from cloud storage.
+  - Tokenizing & chunking?
+  - Only return responses meeting certain similarity score.
 - Ideas for using a VectorDB?
     - Storage & search. Open source codebases.
 - Write a basic VectorDB. Insert embedding. Search for embedding.
