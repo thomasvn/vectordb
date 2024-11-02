@@ -4,7 +4,9 @@ go 1.23.1
 
 require (
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
+	github.com/go-openapi/strfmt v0.23.0
 	github.com/mmcdole/gofeed v1.3.0
+	github.com/philippgille/chromem-go v0.7.0
 	github.com/weaviate/weaviate v1.26.0-rc.1
 	github.com/weaviate/weaviate-go-client/v4 v4.15.1
 )
@@ -21,7 +23,6 @@ require (
 	github.com/go-openapi/jsonreference v0.19.6 // indirect
 	github.com/go-openapi/loads v0.21.1 // indirect
 	github.com/go-openapi/spec v0.20.4 // indirect
-	github.com/go-openapi/strfmt v0.23.0 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/go-openapi/validate v0.21.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect

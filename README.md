@@ -57,13 +57,19 @@ https://kubernetes.io/feed.xml
 exit status 1
 -->
 
-<!-- 
+<!--
 TODO:
 - RSS Search
+  - Serverless deployment
+    - https://cloud.google.com/kubernetes-engine/pricing#cluster_management_fee_and_free_tier
+    - ServiceA = handling the query from the user
+    - ServiceB = creating the vector database. NOTE. This won't work. Every query to the vector database will create a new vector database.
   - Only insert RSS feeds if it is not already in the DB. And if it has not been updated recently.
   - MAX_CONTENT_LENGTH should be defined in tokens not chars. Create multiple chunks for this blog post. https://github.com/openai/tiktoken
   - only return responses if they meet a certain similarity score?
   - grpc instead of http
+  - Two APIs. One for updating the RSS feeds. One for searching the RSS feeds.
+  - https://weaviate.io/developers/weaviate/configuration/backups
 - Ideas for using a VectorDB?
     - Storage & search. Open source codebases.
 - Write a basic VectorDB. Insert embedding. Search for embedding.
