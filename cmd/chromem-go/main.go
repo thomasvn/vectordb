@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/mmcdole/gofeed"
@@ -44,12 +45,14 @@ func main() {
 type ChromemDB struct {
 	db            *chromem.DB
 	rssCollection *chromem.Collection
+	concurrency   int
 }
 
 func InitChromemDB() *ChromemDB {
 	cdb := ChromemDB{}
 	cdb.db = chromem.NewDB()
 	cdb.rssCollection, _ = cdb.db.CreateCollection("RssFeeds", nil, nil)
+	cdb.concurrency = 500
 	return &cdb
 }
 
@@ -59,6 +62,7 @@ func (cdb *ChromemDB) Insert(feeds []RSSFeedProperties) {
 	contents := []string{}
 
 	for _, feed := range feeds {
+		// TODO: Only add if not already exists
 		ids = append(ids, feed.UID)
 		metadatas = append(metadatas, map[string]string{
 			"title":     feed.Title,
@@ -69,7 +73,7 @@ func (cdb *ChromemDB) Insert(feeds []RSSFeedProperties) {
 		contents = append(contents, feed.Content)
 	}
 
-	_ = cdb.rssCollection.Add(context.TODO(), ids, nil, metadatas, contents)
+	_ = cdb.rssCollection.AddConcurrently(context.TODO(), ids, nil, metadatas, contents, cdb.concurrency)
 }
 
 func (cdb *ChromemDB) Query(query string) []string {
@@ -79,7 +83,7 @@ func (cdb *ChromemDB) Query(query string) []string {
 
 	formattedResults := []string{}
 	for _, result := range results {
-		formattedResults = append(formattedResults, fmt.Sprintf("Title: %s\nLink: %s\nContent: %s\n", result.Metadata["title"], result.Metadata["link"], result.Content))
+		formattedResults = append(formattedResults, fmt.Sprintf("Title: %s\nSimilarity: %f\nLink: %s\nContent: %s\n", result.Metadata["title"], result.Similarity, result.Metadata["link"], result.Content))
 	}
 	return formattedResults
 }
@@ -115,14 +119,25 @@ func InitRssFeedParser() *RssFeedParser {
 
 func (rfp *RssFeedParser) ParseAllFeeds(rssFeeds string) []RSSFeedProperties {
 	results := []RSSFeedProperties{}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
 	for _, url := range strings.Split(rssFeeds, ",") {
-		feed := rfp.parseFeed(url)
-		results = append(results, feed...)
+		wg.Add(1)
+		go func(url string) {
+			defer wg.Done()
+			feed := rfp.parseFeed(url)
+			mu.Lock()
+			results = append(results, feed...)
+			mu.Unlock()
+		}(url)
 	}
+
+	wg.Wait()
 	return results
 }
 
-// TODO: goroutines
 func (rfp *RssFeedParser) parseFeed(url string) []RSSFeedProperties {
 	fp := gofeed.NewParser()
 	feed, _ := fp.ParseURL(url)
