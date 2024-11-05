@@ -68,7 +68,6 @@ TODO:
   - Two APIs. One for updating the RSS feeds. One for searching the RSS feeds.
   - https://weaviate.io/developers/weaviate/configuration/backups
 - Chromem-go
-  - Persist the DB to disk. Load to disk.
   - Persist the DB to cloud storage. Load from cloud storage.
   - Tokenizing & chunking?
   - Only return responses meeting certain similarity score.
@@ -82,6 +81,8 @@ TODO:
 
 <!--
 DONE (new to old):
+- Chromem-go RSS Search
+  - Persist the DB to disk. Load to disk.
 - RSS Search
   - Add both "Item.Description" and "Item.Content" into the embedding
   - Embedding maxinput=8191 https://platform.openai.com/docs/guides/embeddings/embedding-models

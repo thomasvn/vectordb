@@ -9,9 +9,11 @@ import (
 	"strings"
 	"sync"
 
+	"cloud.google.com/go/storage"
 	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/mmcdole/gofeed"
 	"github.com/philippgille/chromem-go"
+	"google.golang.org/api/option"
 )
 
 var (
@@ -49,10 +51,12 @@ type ChromemDB struct {
 }
 
 func InitChromemDB() *ChromemDB {
-	cdb := ChromemDB{}
-	cdb.db = chromem.NewDB()
+	cdb := ChromemDB{
+		db:          chromem.NewDB(),
+		concurrency: 500,
+	}
 	cdb.rssCollection, _ = cdb.db.CreateCollection("RssFeeds", nil, nil)
-	cdb.concurrency = 500
+	cdb.Import()
 	return &cdb
 }
 
@@ -73,7 +77,13 @@ func (cdb *ChromemDB) Insert(feeds []RSSFeedProperties) {
 		contents = append(contents, feed.Content)
 	}
 
-	_ = cdb.rssCollection.AddConcurrently(context.TODO(), ids, nil, metadatas, contents, cdb.concurrency)
+	err := cdb.rssCollection.AddConcurrently(context.TODO(), ids, nil, metadatas, contents, cdb.concurrency)
+	if err != nil {
+		log.Fatalf("Error inserting feeds: %s", err.Error())
+	}
+
+	cdb.Export()
+	cdb.ExportToGCS()
 }
 
 func (cdb *ChromemDB) Query(query string) []string {
@@ -83,21 +93,48 @@ func (cdb *ChromemDB) Query(query string) []string {
 
 	formattedResults := []string{}
 	for _, result := range results {
-		formattedResults = append(formattedResults, fmt.Sprintf("Title: %s\nSimilarity: %f\nLink: %s\nContent: %s\n", result.Metadata["title"], result.Similarity, result.Metadata["link"], result.Content))
+		formattedResults = append(formattedResults, fmt.Sprintf("Title: %s\nSimilarity: %f\nLink: %s\n", result.Metadata["title"], result.Similarity, result.Metadata["link"]))
 	}
 	return formattedResults
 }
 
 func (cdb *ChromemDB) Export() {
-	// TODO
+	if err := cdb.db.ExportToFile("chromem-go.gob.gz", true, ""); err != nil {
+		log.Printf("WARN: Error exporting DB: %s", err.Error())
+	}
 }
 
 func (cdb *ChromemDB) Import() {
+	if err := cdb.db.ImportFromFile("chromem-go.gob.gz", ""); err != nil {
+		log.Printf("WARN: Error importing DB: %s", err.Error())
+	}
+}
+
+func (cdb *ChromemDB) ExportToGCS() {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx, option.WithCredentialsFile("service-key.json")) // TODO
+	if err != nil {
+		log.Printf("WARN: failed to create storage client: %s", err.Error())
+		return
+	}
+	defer client.Close()
+
+	bucketName := "thomasvn-rss-search" // TODO
+	obj := client.Bucket(bucketName).Object("chromem-go.gob.gz")
+	writer := obj.NewWriter(ctx)
+	defer writer.Close()
+
+	if err := cdb.db.ExportToWriter(writer, true, ""); err != nil {
+		log.Printf("WARN: failed to write to GCS: %s", err.Error())
+	}
+}
+
+func (cdb *ChromemDB) ImportFromGCS() {
 	// TODO
 }
 
 type RssFeedParser struct {
-	maxContentLength int
+	maxContentLength int // TODO: Chunking
 	mdConverter      *md.Converter
 }
 
@@ -111,10 +148,10 @@ type RSSFeedProperties struct {
 }
 
 func InitRssFeedParser() *RssFeedParser {
-	rfp := RssFeedParser{}
-	rfp.maxContentLength = 10000
-	rfp.mdConverter = md.NewConverter("", true, nil)
-	return &rfp
+	return &RssFeedParser{
+		maxContentLength: 10000,
+		mdConverter:      md.NewConverter("", true, nil),
+	}
 }
 
 func (rfp *RssFeedParser) ParseAllFeeds(rssFeeds string) []RSSFeedProperties {
