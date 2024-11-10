@@ -4,6 +4,10 @@ Experimenting ...
 
 ## Weaviate
 
+- <https://weaviate.io/developers/weaviate/installation/docker-compose>
+- <https://weaviate.io/developers/weaviate/quickstart>
+- <https://platform.openai.com/docs/guides/embeddings>
+
 ```sh
 # Option1: Locally run VectorDB with no vectorizer module
 docker run -p 8080:8080 -p 50051:50051 cr.weaviate.io/semitechnologies/weaviate:1.26.4
@@ -24,21 +28,14 @@ go run cmd/main/main.go
 
 ## Chromem-go
 
-https://pkg.go.dev/github.com/philippgille/chromem-go
+An embedded vector database.
 
-An embedded vector database
+- <https://pkg.go.dev/github.com/philippgille/chromem-go>
 
 ```sh
 source .env
 go run cmd/chromem-go/main.go "topics on kubernetes security
 ```
-
-<!--
-REFERENCES:
-- https://weaviate.io/developers/weaviate/installation/docker-compose
-- https://weaviate.io/developers/weaviate/quickstart
-- https://platform.openai.com/docs/guides/embeddings
--->
 
 <!--
 RSS Feeds I follow:
@@ -50,6 +47,8 @@ https://rss.beehiiv.com/feeds/gQxaV1KHkQ.xml
 https://world.hey.com/dhh/feed.atom
 https://blog.kubecost.com/feed.xml
 https://kubernetes.io/feed.xml
+https://technicalwriting.dev/rss.xml
+https://sive.rs/en.atom
 
 - Pocket Exports https://getpocket.com/export/
 -->
@@ -68,9 +67,12 @@ TODO:
   - Two APIs. One for updating the RSS feeds. One for searching the RSS feeds.
   - https://weaviate.io/developers/weaviate/configuration/backups
 - Chromem-go
-  - Persist the DB to cloud storage. Load from cloud storage.
+  - Only insert RSS feeds if it is not already in the DB.
+  - Insert an RSS feed item if it has been updated.
   - Tokenizing & chunking?
   - Only return responses meeting certain similarity score.
+  - Function to return all RSS feeds.
+  - Function to return all RSS feeds sorted by date.
 - Ideas for using a VectorDB?
     - Storage & search. Open source codebases.
 - Write a basic VectorDB. Insert embedding. Search for embedding.
@@ -82,6 +84,7 @@ TODO:
 <!--
 DONE (new to old):
 - Chromem-go RSS Search
+  - Persist the DB to cloud storage. Load from cloud storage.
   - Persist the DB to disk. Load to disk.
 - RSS Search
   - Add both "Item.Description" and "Item.Content" into the embedding

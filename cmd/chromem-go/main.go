@@ -1,28 +1,32 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
 	"sync"
 
 	"cloud.google.com/go/storage"
-	md "github.com/JohannesKaufmann/html-to-markdown"
+	md "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/mmcdole/gofeed"
 	"github.com/philippgille/chromem-go"
 	"google.golang.org/api/option"
 )
 
 var (
-	openaiApiKey = os.Getenv("OPENAI_API_KEY") // ""
-	rssFeeds     = os.Getenv("RSS_FEEDS")      // Comma-separated list of links "https://thomasvn.dev/feed/,https://golangweekly.com/rss/,https://kubernetes.io/feed.xml"
+	OpenaiApiKey              = os.Getenv("OPENAI_API_KEY")               // ""
+	RssFeeds                  = os.Getenv("RSS_FEEDS")                    // Comma-separated list of links "https://thomasvn.dev/feed/,https://golangweekly.com/rss/,https://kubernetes.io/feed.xml"
+	ServiceKeyCredentialsFile = os.Getenv("SERVICE_KEY_CREDENTIALS_FILE") // Optional. "./service-key.json"
+	GcsBucketName             = "thomasvn-rss-search"
 )
 
 func main() {
-	if openaiApiKey == "" || rssFeeds == "" {
+	if OpenaiApiKey == "" || RssFeeds == "" {
 		log.Fatal("OPENAI_API_KEY and RSS_FEEDS environment variables must be set")
 	}
 	if len(os.Args) < 2 {
@@ -33,7 +37,7 @@ func main() {
 	db := InitChromemDB()
 	parser := InitRssFeedParser()
 
-	feeds := parser.ParseAllFeeds(rssFeeds)
+	feeds := parser.ParseAllFeeds(RssFeeds)
 	log.Printf("Parsed %d feeds\n", len(feeds))
 
 	db.Insert(feeds)
@@ -56,7 +60,11 @@ func InitChromemDB() *ChromemDB {
 		concurrency: 500,
 	}
 	cdb.rssCollection, _ = cdb.db.CreateCollection("RssFeeds", nil, nil)
-	cdb.Import()
+	if ServiceKeyCredentialsFile != "" {
+		cdb.ImportFromGCS()
+	} else {
+		cdb.Import()
+	}
 	return &cdb
 }
 
@@ -82,8 +90,11 @@ func (cdb *ChromemDB) Insert(feeds []RSSFeedProperties) {
 		log.Fatalf("Error inserting feeds: %s", err.Error())
 	}
 
-	cdb.Export()
-	cdb.ExportToGCS()
+	if ServiceKeyCredentialsFile != "" {
+		cdb.ExportToGCS()
+	} else {
+		cdb.Export()
+	}
 }
 
 func (cdb *ChromemDB) Query(query string) []string {
@@ -101,41 +112,67 @@ func (cdb *ChromemDB) Query(query string) []string {
 func (cdb *ChromemDB) Export() {
 	if err := cdb.db.ExportToFile("chromem-go.gob.gz", true, ""); err != nil {
 		log.Printf("WARN: Error exporting DB: %s", err.Error())
+		return
 	}
+	log.Printf("Exported DB to file chromem-go.gob.gz")
 }
 
 func (cdb *ChromemDB) Import() {
 	if err := cdb.db.ImportFromFile("chromem-go.gob.gz", ""); err != nil {
 		log.Printf("WARN: Error importing DB: %s", err.Error())
+		return
 	}
+	log.Printf("Imported DB from file chromem-go.gob.gz")
 }
 
 func (cdb *ChromemDB) ExportToGCS() {
-	ctx := context.Background()
-	client, err := storage.NewClient(ctx, option.WithCredentialsFile("service-key.json")) // TODO
+	client, err := storage.NewClient(context.Background(), option.WithCredentialsFile(ServiceKeyCredentialsFile))
 	if err != nil {
 		log.Printf("WARN: failed to create storage client: %s", err.Error())
 		return
 	}
 	defer client.Close()
 
-	bucketName := "thomasvn-rss-search" // TODO
-	obj := client.Bucket(bucketName).Object("chromem-go.gob.gz")
-	writer := obj.NewWriter(ctx)
+	obj := client.Bucket(GcsBucketName).Object("chromem-go.gob.gz")
+	writer := obj.NewWriter(context.Background())
 	defer writer.Close()
 
 	if err := cdb.db.ExportToWriter(writer, true, ""); err != nil {
 		log.Printf("WARN: failed to write to GCS: %s", err.Error())
 	}
+	log.Printf("Exported DB to GCS")
 }
 
 func (cdb *ChromemDB) ImportFromGCS() {
-	// TODO
+	client, err := storage.NewClient(context.Background(), option.WithCredentialsFile(ServiceKeyCredentialsFile))
+	if err != nil {
+		log.Printf("WARN: failed to create storage client: %s", err.Error())
+		return
+	}
+	defer client.Close()
+
+	obj := client.Bucket(GcsBucketName).Object("chromem-go.gob.gz")
+	reader, err := obj.NewReader(context.Background())
+	if err != nil {
+		log.Printf("WARN: failed to read from GCS: %s", err.Error())
+		return
+	}
+	defer reader.Close()
+
+	seekableReader, err := NewSeekableReader(reader)
+	if err != nil {
+		log.Printf("WARN: failed to create seekable reader: %s", err.Error())
+		return
+	}
+
+	if err := cdb.db.ImportFromReader(seekableReader, ""); err != nil {
+		log.Printf("WARN: failed to import from GCS: %s", err.Error())
+	}
+	log.Printf("Imported DB from GCS")
 }
 
 type RssFeedParser struct {
 	maxContentLength int // TODO: Chunking
-	mdConverter      *md.Converter
 }
 
 type RSSFeedProperties struct {
@@ -150,7 +187,6 @@ type RSSFeedProperties struct {
 func InitRssFeedParser() *RssFeedParser {
 	return &RssFeedParser{
 		maxContentLength: 10000,
-		mdConverter:      md.NewConverter("", true, nil),
 	}
 }
 
@@ -181,9 +217,9 @@ func (rfp *RssFeedParser) parseFeed(url string) []RSSFeedProperties {
 
 	results := []RSSFeedProperties{}
 	for _, item := range feed.Items {
-		titleMd, _ := rfp.mdConverter.ConvertString(item.Title)
-		descriptionMd, _ := rfp.mdConverter.ConvertString(item.Description)
-		contentMd, _ := rfp.mdConverter.ConvertString(item.Content)
+		titleMd, _ := md.ConvertString(item.Title)
+		descriptionMd, _ := md.ConvertString(item.Description)
+		contentMd, _ := md.ConvertString(item.Content)
 		resultMd := titleMd + "\n\n" + descriptionMd + "\n\n" + contentMd
 		if len(resultMd) > rfp.maxContentLength {
 			resultMd = resultMd[:rfp.maxContentLength] + "..."
@@ -207,4 +243,29 @@ func (rfp *RssFeedParser) generateUID(input string) string {
 	hash := md5.Sum([]byte(input))
 	uid := fmt.Sprintf("%x-%x-%x-%x-%x", hash[0:4], hash[4:6], hash[6:8], hash[8:10], hash[10:])
 	return uid
+}
+
+// Embeds a bytes.Reader which implements io.ReadSeeker. chromem-go requires it
+// but GCS Reader does not implement it
+type seekableReader struct {
+	*bytes.Reader
+	original *storage.Reader
+}
+
+func NewSeekableReader(r *storage.Reader) (*seekableReader, error) {
+	// Read all content into buffer
+	content, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create bytes.Reader which implements io.ReadSeeker
+	return &seekableReader{
+		Reader:   bytes.NewReader(content),
+		original: r,
+	}, nil
+}
+
+func (sr *seekableReader) Close() error {
+	return sr.original.Close()
 }
