@@ -68,6 +68,7 @@ TODO:
   - https://weaviate.io/developers/weaviate/configuration/backups
 - Chromem-go
   - Only insert RSS feeds if it is not already in the DB.
+    - Use Go Breakpoints to debug why the RssCollections is seemingly empty.
   - Insert an RSS feed item if it has been updated.
   - Tokenizing & chunking?
   - Only return responses meeting certain similarity score.

@@ -38,10 +38,8 @@ func main() {
 	parser := InitRssFeedParser()
 
 	feeds := parser.ParseAllFeeds(RssFeeds)
-	log.Printf("Parsed %d feeds\n", len(feeds))
 
 	db.Insert(feeds)
-	log.Printf("Inserted %d feeds\n", len(feeds))
 
 	results := db.Query(query)
 	log.Printf("Found %d results\n", len(results))
@@ -49,9 +47,8 @@ func main() {
 }
 
 type ChromemDB struct {
-	db            *chromem.DB
-	rssCollection *chromem.Collection
-	concurrency   int
+	db          *chromem.DB
+	concurrency int
 }
 
 func InitChromemDB() *ChromemDB {
@@ -59,12 +56,14 @@ func InitChromemDB() *ChromemDB {
 		db:          chromem.NewDB(),
 		concurrency: 500,
 	}
-	cdb.rssCollection, _ = cdb.db.CreateCollection("RssFeeds", nil, nil)
+	cdb.db.CreateCollection("RssFeeds", nil, nil)
+
 	if ServiceKeyCredentialsFile != "" {
 		cdb.ImportFromGCS()
 	} else {
 		cdb.Import()
 	}
+
 	return &cdb
 }
 
@@ -73,8 +72,14 @@ func (cdb *ChromemDB) Insert(feeds []RSSFeedProperties) {
 	metadatas := []map[string]string{}
 	contents := []string{}
 
+	rssCollection := cdb.db.GetCollection("RssFeeds", nil)
+
 	for _, feed := range feeds {
-		// TODO: Only add if not already exists
+		// Do not insert if it already exists
+		if _, err := rssCollection.GetByID(context.TODO(), feed.UID); err != nil {
+			continue
+		}
+
 		ids = append(ids, feed.UID)
 		metadatas = append(metadatas, map[string]string{
 			"title":     feed.Title,
@@ -85,10 +90,16 @@ func (cdb *ChromemDB) Insert(feeds []RSSFeedProperties) {
 		contents = append(contents, feed.Content)
 	}
 
-	err := cdb.rssCollection.AddConcurrently(context.TODO(), ids, nil, metadatas, contents, cdb.concurrency)
-	if err != nil {
-		log.Fatalf("Error inserting feeds: %s", err.Error())
+	if len(ids) == 0 {
+		log.Printf("No new entries to insert\n")
+		return
 	}
+
+	err := rssCollection.AddConcurrently(context.TODO(), ids, nil, metadatas, contents, cdb.concurrency)
+	if err != nil {
+		log.Fatalf("Error inserting entries: %s", err.Error())
+	}
+	log.Printf("Inserted %d entries\n", len(ids))
 
 	if ServiceKeyCredentialsFile != "" {
 		cdb.ExportToGCS()
@@ -100,7 +111,9 @@ func (cdb *ChromemDB) Insert(feeds []RSSFeedProperties) {
 func (cdb *ChromemDB) Query(query string) []string {
 	maxQueryResults := 5
 
-	results, _ := cdb.rssCollection.Query(context.TODO(), query, maxQueryResults, nil, nil)
+	rssCollection := cdb.db.GetCollection("RssFeeds", nil)
+
+	results, _ := rssCollection.Query(context.TODO(), query, maxQueryResults, nil, nil)
 
 	formattedResults := []string{}
 	for _, result := range results {
@@ -118,7 +131,7 @@ func (cdb *ChromemDB) Export() {
 }
 
 func (cdb *ChromemDB) Import() {
-	if err := cdb.db.ImportFromFile("chromem-go.gob.gz", ""); err != nil {
+	if err := cdb.db.ImportFromFile("/Users/thomasnguyen/code/vectordb/chromem-go.gob.gz", ""); err != nil { // TODO
 		log.Printf("WARN: Error importing DB: %s", err.Error())
 		return
 	}
@@ -140,7 +153,7 @@ func (cdb *ChromemDB) ExportToGCS() {
 	if err := cdb.db.ExportToWriter(writer, true, ""); err != nil {
 		log.Printf("WARN: failed to write to GCS: %s", err.Error())
 	}
-	log.Printf("Exported DB to GCS")
+	log.Printf("Exported chromem-go.gob.gz to GCS")
 }
 
 func (cdb *ChromemDB) ImportFromGCS() {
@@ -168,7 +181,7 @@ func (cdb *ChromemDB) ImportFromGCS() {
 	if err := cdb.db.ImportFromReader(seekableReader, ""); err != nil {
 		log.Printf("WARN: failed to import from GCS: %s", err.Error())
 	}
-	log.Printf("Imported DB from GCS")
+	log.Printf("Imported chromem-go.gob.gz from GCS")
 }
 
 type RssFeedParser struct {
@@ -208,6 +221,7 @@ func (rfp *RssFeedParser) ParseAllFeeds(rssFeeds string) []RSSFeedProperties {
 	}
 
 	wg.Wait()
+	log.Printf("Parsed %d entries\n", len(results))
 	return results
 }
 

@@ -1,3 +1,4 @@
 .env
 *.gob*
 service-key.json
+.vscode
