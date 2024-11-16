@@ -76,7 +76,7 @@ func (cdb *ChromemDB) Insert(feeds []RSSFeedProperties) {
 
 	for _, feed := range feeds {
 		// Do not insert if it already exists
-		if _, err := rssCollection.GetByID(context.TODO(), feed.UID); err != nil {
+		if _, err := rssCollection.GetByID(context.TODO(), feed.UID); err == nil {
 			continue
 		}
 
@@ -131,7 +131,7 @@ func (cdb *ChromemDB) Export() {
 }
 
 func (cdb *ChromemDB) Import() {
-	if err := cdb.db.ImportFromFile("/Users/thomasnguyen/code/vectordb/chromem-go.gob.gz", ""); err != nil { // TODO
+	if err := cdb.db.ImportFromFile("chromem-go.gob.gz", ""); err != nil {
 		log.Printf("WARN: Error importing DB: %s", err.Error())
 		return
 	}
