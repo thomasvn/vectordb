@@ -67,9 +67,6 @@ TODO:
   - Two APIs. One for updating the RSS feeds. One for searching the RSS feeds.
   - https://weaviate.io/developers/weaviate/configuration/backups
 - Chromem-go
-  - Tokenizing & chunking?
-    - https://pkg.go.dev/github.com/pkoukk/tiktoken-go
-    - https://pkg.go.dev/github.com/tmc/langchaingo/textsplitter
   - Insert an RSS feed item if it has been updated.
   - Only return responses meeting certain similarity score.
   - Function to return all RSS feeds.
@@ -87,6 +84,9 @@ TODO:
 <!--
 DONE (new to old):
 - Chromem-go RSS Search
+  - Tokenizing & chunking
+    - https://pkg.go.dev/github.com/pkoukk/tiktoken-go
+    - https://pkg.go.dev/github.com/tmc/langchaingo/textsplitter
   - Only insert RSS feeds if it is not already in the DB.
   - Persist the DB to cloud storage. Load from cloud storage.
   - Persist the DB to disk. Load to disk.

@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	"cloud.google.com/go/storage"
 	md "github.com/JohannesKaufmann/html-to-markdown/v2"
@@ -67,7 +68,7 @@ func InitChromemDB() *ChromemDB {
 	return &cdb
 }
 
-func (cdb *ChromemDB) Insert(feeds []RSSFeedProperties) {
+func (cdb *ChromemDB) Insert(feeds []RSSFeedEntry) {
 	ids := []string{}
 	metadatas := []map[string]string{}
 	contents := []string{}
@@ -184,11 +185,7 @@ func (cdb *ChromemDB) ImportFromGCS() {
 	log.Printf("Imported chromem-go.gob.gz from GCS")
 }
 
-type RssFeedParser struct {
-	maxContentLength int // TODO: Chunking
-}
-
-type RSSFeedProperties struct {
+type RSSFeedEntry struct {
 	UID       string
 	Title     string
 	Link      string
@@ -197,86 +194,79 @@ type RSSFeedProperties struct {
 	Content   string
 }
 
+type RssFeedParser struct{}
+
 func InitRssFeedParser() *RssFeedParser {
-	return &RssFeedParser{
-		maxContentLength: 10000,
-	}
+	return &RssFeedParser{}
 }
 
-func (rfp *RssFeedParser) ParseAllFeeds(rssFeeds string) []RSSFeedProperties {
-	results := []RSSFeedProperties{}
+func (rfp *RssFeedParser) ParseAllFeeds(rssFeeds string) []RSSFeedEntry {
+	results := []RSSFeedEntry{}
 
-	// var wg sync.WaitGroup
-	// var mu sync.Mutex
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 
 	for _, url := range strings.Split(rssFeeds, ",") {
-		feed := rfp.parseFeed(url)
-		results = append(results, feed...)
-
-		// wg.Add(1)
-		// go func(url string) {
-		// 	defer wg.Done()
-		// 	feed := rfp.parseFeed(url)
-		// 	mu.Lock()
-		// 	results = append(results, feed...)
-		// 	mu.Unlock()
-		// }(url)
+		wg.Add(1)
+		go func(url string) {
+			defer wg.Done()
+			feed := rfp.parseFeed(url)
+			mu.Lock()
+			results = append(results, feed...)
+			mu.Unlock()
+		}(url)
 	}
 
-	// wg.Wait()
+	wg.Wait()
 	log.Printf("Parsed %d entries\n", len(results))
 	return results
 }
 
-func (rfp *RssFeedParser) parseFeed(url string) []RSSFeedProperties {
+func (rfp *RssFeedParser) parseFeed(url string) []RSSFeedEntry {
 	fp := gofeed.NewParser()
 	feed, _ := fp.ParseURL(url)
 
-	results := []RSSFeedProperties{}
+	results := []RSSFeedEntry{}
 	for _, item := range feed.Items {
-		titleMd, _ := md.ConvertString(item.Title)
-		descriptionMd, _ := md.ConvertString(item.Description)
-		contentMd, _ := md.ConvertString(item.Content)
+		titleMd, err := md.ConvertString(item.Title)
+		if err != nil {
+			log.Printf("WARN: failed to convert title to markdown: %s", err.Error())
+			continue
+		}
+		descriptionMd, err := md.ConvertString(item.Description)
+		if err != nil {
+			log.Printf("WARN: failed to convert description to markdown: %s", err.Error())
+			continue
+		}
+		contentMd, err := md.ConvertString(item.Content)
+		if err != nil {
+			log.Printf("WARN: failed to convert content to markdown: %s", err.Error())
+			continue
+		}
 		resultMd := titleMd + "\n\n" + descriptionMd + "\n\n" + contentMd
 
-		// TODO: Chunking
-
-		// https://pkg.go.dev/github.com/pkoukk/tiktoken-go
-		// tkm, _ := tiktoken.GetEncoding("cl100k_base")
-		// token := tkm.Encode(resultMd, nil, nil)
-		// log.Printf("Token Length: %d\n", len(token))
-
-		// https://pkg.go.dev/github.com/tmc/langchaingo/textsplitter
-		splitter := textsplitter.NewMarkdownTextSplitter(
-			textsplitter.WithChunkSize(5000),
-			textsplitter.WithChunkOverlap(1000),
-			textsplitter.WithCodeBlocks(true),
-			textsplitter.WithEncodingName("cl100k_base"),
-		)
-		chunks, _ := splitter.SplitText(contentMd)
-		log.Printf("NumChunks1: %d\n", len(chunks))
-
-		splitter2 := textsplitter.NewTokenSplitter(
-			textsplitter.WithChunkSize(5000),
+		// Split the content into chunks smaller than 8191 tokens (max input for OpenAI embeddings)
+		splitter := textsplitter.NewTokenSplitter(
+			textsplitter.WithChunkSize(6000),
 			textsplitter.WithChunkOverlap(1000),
 			textsplitter.WithEncodingName("cl100k_base"),
 		)
-		chunks2, _ := splitter2.SplitText(contentMd)
-		log.Printf("NumChunks2: %d\n", len(chunks2))
-
-		if len(resultMd) > rfp.maxContentLength {
-			resultMd = resultMd[:rfp.maxContentLength] + "..."
+		chunks, err := splitter.SplitText(resultMd)
+		if err != nil {
+			log.Printf("WARN: failed to split content into chunks: %s", err.Error())
+			continue
 		}
-
-		d := RSSFeedProperties{
-			UID:       rfp.generateUID(item.Link),
-			Title:     item.Title,
-			Link:      item.Link,
-			Updated:   item.Updated,
-			Published: item.PublishedParsed.String(),
-			Content:   resultMd,
+		for i, chunk := range chunks {
+			d := RSSFeedEntry{
+				UID:       rfp.generateUID(item.Link + strings.Repeat(" ", i)),
+				Title:     item.Title,
+				Link:      item.Link,
+				Updated:   item.Updated,
+				Published: item.PublishedParsed.String(),
+				Content:   chunk,
+			}
+			results = append(results, d)
 		}
-		results = append(results, d)
 	}
 	return results
 }
