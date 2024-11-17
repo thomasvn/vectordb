@@ -67,13 +67,15 @@ TODO:
   - Two APIs. One for updating the RSS feeds. One for searching the RSS feeds.
   - https://weaviate.io/developers/weaviate/configuration/backups
 - Chromem-go
-  - Only insert RSS feeds if it is not already in the DB.
-    - Use Go Breakpoints to debug why the RssCollections is seemingly empty.
-  - Insert an RSS feed item if it has been updated.
   - Tokenizing & chunking?
+    - https://pkg.go.dev/github.com/pkoukk/tiktoken-go
+    - https://pkg.go.dev/github.com/tmc/langchaingo/textsplitter
+  - Insert an RSS feed item if it has been updated.
   - Only return responses meeting certain similarity score.
   - Function to return all RSS feeds.
   - Function to return all RSS feeds sorted by date.
+  - Deploy to Google Cloud Run
+  - Ability for users to create accounts. Ability for users to create their own list of RSS feeds.
 - Ideas for using a VectorDB?
     - Storage & search. Open source codebases.
 - Write a basic VectorDB. Insert embedding. Search for embedding.
@@ -85,6 +87,7 @@ TODO:
 <!--
 DONE (new to old):
 - Chromem-go RSS Search
+  - Only insert RSS feeds if it is not already in the DB.
   - Persist the DB to cloud storage. Load from cloud storage.
   - Persist the DB to disk. Load to disk.
 - RSS Search

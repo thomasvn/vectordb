@@ -9,12 +9,12 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
 
 	"cloud.google.com/go/storage"
 	md "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/mmcdole/gofeed"
 	"github.com/philippgille/chromem-go"
+	"github.com/tmc/langchaingo/textsplitter"
 	"google.golang.org/api/option"
 )
 
@@ -206,21 +206,24 @@ func InitRssFeedParser() *RssFeedParser {
 func (rfp *RssFeedParser) ParseAllFeeds(rssFeeds string) []RSSFeedProperties {
 	results := []RSSFeedProperties{}
 
-	var wg sync.WaitGroup
-	var mu sync.Mutex
+	// var wg sync.WaitGroup
+	// var mu sync.Mutex
 
 	for _, url := range strings.Split(rssFeeds, ",") {
-		wg.Add(1)
-		go func(url string) {
-			defer wg.Done()
-			feed := rfp.parseFeed(url)
-			mu.Lock()
-			results = append(results, feed...)
-			mu.Unlock()
-		}(url)
+		feed := rfp.parseFeed(url)
+		results = append(results, feed...)
+
+		// wg.Add(1)
+		// go func(url string) {
+		// 	defer wg.Done()
+		// 	feed := rfp.parseFeed(url)
+		// 	mu.Lock()
+		// 	results = append(results, feed...)
+		// 	mu.Unlock()
+		// }(url)
 	}
 
-	wg.Wait()
+	// wg.Wait()
 	log.Printf("Parsed %d entries\n", len(results))
 	return results
 }
@@ -235,6 +238,32 @@ func (rfp *RssFeedParser) parseFeed(url string) []RSSFeedProperties {
 		descriptionMd, _ := md.ConvertString(item.Description)
 		contentMd, _ := md.ConvertString(item.Content)
 		resultMd := titleMd + "\n\n" + descriptionMd + "\n\n" + contentMd
+
+		// TODO: Chunking
+
+		// https://pkg.go.dev/github.com/pkoukk/tiktoken-go
+		// tkm, _ := tiktoken.GetEncoding("cl100k_base")
+		// token := tkm.Encode(resultMd, nil, nil)
+		// log.Printf("Token Length: %d\n", len(token))
+
+		// https://pkg.go.dev/github.com/tmc/langchaingo/textsplitter
+		splitter := textsplitter.NewMarkdownTextSplitter(
+			textsplitter.WithChunkSize(5000),
+			textsplitter.WithChunkOverlap(1000),
+			textsplitter.WithCodeBlocks(true),
+			textsplitter.WithEncodingName("cl100k_base"),
+		)
+		chunks, _ := splitter.SplitText(contentMd)
+		log.Printf("NumChunks1: %d\n", len(chunks))
+
+		splitter2 := textsplitter.NewTokenSplitter(
+			textsplitter.WithChunkSize(5000),
+			textsplitter.WithChunkOverlap(1000),
+			textsplitter.WithEncodingName("cl100k_base"),
+		)
+		chunks2, _ := splitter2.SplitText(contentMd)
+		log.Printf("NumChunks2: %d\n", len(chunks2))
+
 		if len(resultMd) > rfp.maxContentLength {
 			resultMd = resultMd[:rfp.maxContentLength] + "..."
 		}
@@ -244,7 +273,7 @@ func (rfp *RssFeedParser) parseFeed(url string) []RSSFeedProperties {
 			Title:     item.Title,
 			Link:      item.Link,
 			Updated:   item.Updated,
-			Published: item.Published,
+			Published: item.PublishedParsed.String(),
 			Content:   resultMd,
 		}
 		results = append(results, d)
