@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 
@@ -21,8 +22,8 @@ import (
 
 var (
 	OpenaiApiKey              = os.Getenv("OPENAI_API_KEY")               // ""
-	RssFeeds                  = os.Getenv("RSS_FEEDS")                    // Comma-separated list of links "https://thomasvn.dev/feed/,https://golangweekly.com/rss/,https://kubernetes.io/feed.xml"
-	ServiceKeyCredentialsFile = os.Getenv("SERVICE_KEY_CREDENTIALS_FILE") // Optional. "./service-key.json"
+	RssFeeds                  = os.Getenv("RSS_FEEDS")                    // Comma-separated list of links. Ex: "https://thomasvn.dev/feed/,https://golangweekly.com/rss/,https://kubernetes.io/feed.xml"
+	ServiceKeyCredentialsFile = os.Getenv("SERVICE_KEY_CREDENTIALS_FILE") // Optional. Ex: "./service-key.json"
 	GcsBucketName             = "thomasvn-rss-search"
 )
 
@@ -44,18 +45,28 @@ func main() {
 
 	results := db.Query(query)
 	log.Printf("Found %d results\n", len(results))
-	log.Printf("Results: %v\n", results)
+	for _, result := range results {
+		log.Println(result)
+	}
+
+	all := db.GetAllSortedByDate(feeds)
+	log.Printf("Found %d results\n", len(all))
+	for _, result := range all[:10] {
+		log.Printf("Title: %s\nPublished: %s\nLink: %s\n", result.Metadata["title"], result.Metadata["published"], result.Metadata["link"])
+	}
 }
 
 type ChromemDB struct {
-	db          *chromem.DB
-	concurrency int
+	db              *chromem.DB
+	maxQueryResults int
+	concurrency     int
 }
 
 func InitChromemDB() *ChromemDB {
 	cdb := ChromemDB{
-		db:          chromem.NewDB(),
-		concurrency: 500,
+		db:              chromem.NewDB(),
+		maxQueryResults: 5,
+		concurrency:     500,
 	}
 	cdb.db.CreateCollection("RssFeeds", nil, nil)
 
@@ -110,17 +121,36 @@ func (cdb *ChromemDB) Insert(feeds []RSSFeedEntry) {
 }
 
 func (cdb *ChromemDB) Query(query string) []string {
-	maxQueryResults := 5
-
 	rssCollection := cdb.db.GetCollection("RssFeeds", nil)
 
-	results, _ := rssCollection.Query(context.TODO(), query, maxQueryResults, nil, nil)
+	results, _ := rssCollection.Query(context.TODO(), query, cdb.maxQueryResults, nil, nil)
 
 	formattedResults := []string{}
 	for _, result := range results {
 		formattedResults = append(formattedResults, fmt.Sprintf("Title: %s\nSimilarity: %f\nLink: %s\n", result.Metadata["title"], result.Similarity, result.Metadata["link"]))
 	}
 	return formattedResults
+}
+
+// TODO: THIS IS A HACK. Put a PR in chromem-go to allow this kind of query.
+func (cdb *ChromemDB) GetAllSortedByDate(feeds []RSSFeedEntry) []chromem.Document {
+	results := []chromem.Document{}
+
+	rssCollection := cdb.db.GetCollection("RssFeeds", nil)
+	for _, feed := range feeds {
+		doc, err := rssCollection.GetByID(context.TODO(), feed.UID)
+		if err != nil {
+			log.Printf("WARN: failed to get document: %s", err.Error())
+			continue
+		}
+		results = append(results, doc)
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Metadata["published"] > results[j].Metadata["published"]
+	})
+
+	return results
 }
 
 func (cdb *ChromemDB) Export() {

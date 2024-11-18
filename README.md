@@ -67,11 +67,14 @@ TODO:
   - Two APIs. One for updating the RSS feeds. One for searching the RSS feeds.
   - https://weaviate.io/developers/weaviate/configuration/backups
 - Chromem-go
+  - Upstream PR
+    - Get all documents
+    - https://pkg.go.dev/github.com/philippgille/chromem-go#Collection.GetByID
+    - https://docs.trychroma.com/reference/py-collection#get
+  - Repo cleanup
+  - Deploy to Google Cloud Run
   - Insert an RSS feed item if it has been updated.
   - Only return responses meeting certain similarity score.
-  - Function to return all RSS feeds.
-  - Function to return all RSS feeds sorted by date.
-  - Deploy to Google Cloud Run
   - Ability for users to create accounts. Ability for users to create their own list of RSS feeds.
 - Ideas for using a VectorDB?
     - Storage & search. Open source codebases.
@@ -84,6 +87,7 @@ TODO:
 <!--
 DONE (new to old):
 - Chromem-go RSS Search
+  - Hacky solution to get all documents
   - Tokenizing & chunking
     - https://pkg.go.dev/github.com/pkoukk/tiktoken-go
     - https://pkg.go.dev/github.com/tmc/langchaingo/textsplitter
